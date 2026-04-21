@@ -114,7 +114,6 @@ async function refreshScores(ctx: AppContext, agent: BskyAgent) {
   const res = await builder.execute()
 
   for (const row of res) {
-    // console.dir(row);
     let errorStatus = 0;
     const post = await agent.getPostThread({
       uri: row.uri,
@@ -125,8 +124,17 @@ async function refreshScores(ctx: AppContext, agent: BskyAgent) {
       return null;
     });
     if (post == null) {
-      // error("Failed to get post, deleting: " + row.uri);
-      // await deletePost(ctx, row.uri);
+      error('Failed to get post, error code: ' + errorStatus)
+      if (errorStatus == 400 || errorStatus == 410) {
+        error("Deleting missing post: " + row.uri)
+        let builder = ctx.db
+          .deleteFrom('post')
+          .where('uri', '=', row.uri)
+        await builder.execute()
+      } else if (errorStatus == 429) {
+        error("Rate limited, stopping score refresh")
+        break
+      }
       continue;
     }
     const likeCount = (<any>post.data.thread.post)?.likeCount as number ?? 0;

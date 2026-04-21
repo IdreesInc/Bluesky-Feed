@@ -75,12 +75,15 @@ async function refreshScores(ctx: AppContext, agent: BskyAgent) {
       })
     if (post == null) {
       error('Failed to get post, error code: ' + errorStatus)
-      if (errorStatus === 400 || errorStatus == 410) {
+      if (errorStatus == 400 || errorStatus == 410) {
         error("Deleting missing post: " + row.uri)
         let builder = ctx.db
-          .deleteFrom('rick_roll_post')
+          .deleteFrom('post')
           .where('uri', '=', row.uri)
         await builder.execute()
+      } else if (errorStatus == 429) {
+        error("Rate limited, stopping score refresh")
+        break
       }
       continue
     }
